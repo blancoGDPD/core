@@ -29,6 +29,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: DenonRS232ConfigEntry) -
         await receiver.query_state()
     except (ConnectionError, OSError) as err:
         LOGGER.error("Error connecting to Denon receiver at %s: %s", port, err)
+        if receiver.connected:
+            await receiver.disconnect()
         raise ConfigEntryNotReady from err
 
     entry.runtime_data = receiver

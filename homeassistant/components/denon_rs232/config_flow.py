@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from denon_rs232 import DenonReceiver
@@ -131,7 +130,7 @@ def get_ports() -> dict[str, str]:
     """Get available serial ports keyed by their device path."""
     return {
         port.device: human_readable_device_name(
-            os.path.realpath(port.device),
+            port.device,
             port.serial_number,
             port.manufacturer,
             port.description,
