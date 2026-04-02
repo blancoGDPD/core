@@ -189,6 +189,3 @@ async def init_components(
         return_value=mock_receiver,
     ):
         assert await async_setup_component(hass, DOMAIN, {})
-        await hass.async_block_till_done()
-        await hass.async_block_till_done()
-        await hass.async_block_till_done()

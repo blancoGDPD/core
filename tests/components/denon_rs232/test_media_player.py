@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Literal
 from unittest.mock import call
@@ -33,6 +32,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util.json import load_json
 
 from .conftest import MockReceiver, MockState, _default_state
 
@@ -310,7 +310,7 @@ def test_input_source_translation_keys_cover_all_enum_members() -> None:
     """Test all input sources have a declared translation key."""
     assert set(INPUT_SOURCE_DENON_TO_HA) == set(InputSource)
 
-    strings = json.loads(STRINGS_PATH.read_text("utf-8"))
+    strings = load_json(STRINGS_PATH)
     assert set(INPUT_SOURCE_DENON_TO_HA.values()) == set(
         strings["entity"]["media_player"]["receiver"]["state_attributes"]["source"][
             "state"
