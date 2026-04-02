@@ -43,13 +43,9 @@ def mock_list_serial_ports() -> Generator[list[USBDevice]]:
 def mock_async_setup_entry(mock_receiver: MagicMock) -> Generator[AsyncMock]:
     """Prevent config-entry creation tests from setting up the integration."""
 
-    async def _mock_setup_entry(hass: HomeAssistant, entry) -> bool:
-        entry.runtime_data = mock_receiver
-        return True
-
     with patch(
         "homeassistant.components.denon_rs232.async_setup_entry",
-        side_effect=_mock_setup_entry,
+        return_value=True,
     ) as mock_setup_entry:
         yield mock_setup_entry
 
@@ -113,6 +109,19 @@ async def test_user_form_error(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
     assert result["errors"] == {"base": error}
+
+    mock_receiver.connect.side_effect = None
+
+    with patch(
+        "homeassistant.components.denon_rs232.config_flow.DenonReceiver",
+        return_value=mock_receiver,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_DEVICE: MOCK_DEVICE, CONF_MODEL: MOCK_MODEL},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
 async def test_user_duplicate_port_aborts(hass: HomeAssistant) -> None:
@@ -217,15 +226,24 @@ async def test_manual_form_error_handling(
         == MOCK_DEVICE
     )
 
+    mock_receiver.connect.side_effect = None
 
-async def test_manual_duplicate_port_aborts(hass: HomeAssistant) -> None:
+    with patch(
+        "homeassistant.components.denon_rs232.config_flow.DenonReceiver",
+        return_value=mock_receiver,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_DEVICE: MOCK_DEVICE},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_manual_duplicate_port_aborts(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
     """Test we abort if the same port is already configured."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={CONF_DEVICE: MOCK_DEVICE, CONF_MODEL: MOCK_MODEL},
-    )
-    entry.add_to_hass(hass)
-
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )

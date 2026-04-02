@@ -132,13 +132,15 @@ def mock_receiver(initial_receiver_state: MockState) -> MockReceiver:
 
 
 @pytest.fixture
-def mock_config_entry() -> MockConfigEntry:
+def mock_config_entry(hass: HomeAssistant) -> MockConfigEntry:
     """Create a mock config entry."""
-    return MockConfigEntry(
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={CONF_DEVICE: MOCK_DEVICE, CONF_MODEL: MOCK_MODEL},
         title=MODELS[MOCK_MODEL].name,
     )
+    entry.add_to_hass(hass)
+    return entry
 
 
 @pytest.fixture(autouse=True)
@@ -155,7 +157,6 @@ async def init_components(
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Initialize the Denon component."""
-    mock_config_entry.add_to_hass(hass)
     with patch(
         "homeassistant.components.denon_rs232.DenonReceiver",
         return_value=mock_receiver,
