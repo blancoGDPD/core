@@ -33,7 +33,6 @@
       "receiver": {
         "state_attributes": {
           "source": {
-            "name": "Source",
             "state": {
               "aux1": "Aux 1",
               "aux2": "Aux 2",

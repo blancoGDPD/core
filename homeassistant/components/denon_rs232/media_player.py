@@ -123,7 +123,6 @@ class DenonRS232MediaPlayer(MediaPlayerEntity):
             identifiers={(DOMAIN, config_entry.entry_id)},
             manufacturer="Denon",
             model=model.name,
-            name=config_entry.title,
         )
         self._attr_unique_id = f"{config_entry.entry_id}_{zone}"
 
