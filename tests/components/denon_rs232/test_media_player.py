@@ -8,6 +8,7 @@ from unittest.mock import call
 
 from denon_rs232 import InputSource
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components.denon_rs232.media_player import INPUT_SOURCE_DENON_TO_HA
 from homeassistant.components.media_player import (
@@ -51,12 +52,12 @@ async def auto_init_components(init_components) -> None:
 
 
 async def test_entities_created(
-    hass: HomeAssistant, mock_receiver: MockReceiver
+    hass: HomeAssistant, mock_receiver: MockReceiver, snapshot: SnapshotAssertion
 ) -> None:
     """Test media player entities are created through config entry setup."""
-    assert hass.states.get(MAIN_ENTITY_ID) is not None
-    assert hass.states.get(ZONE_2_ENTITY_ID) is not None
-    assert hass.states.get(ZONE_3_ENTITY_ID) is not None
+    assert hass.states.get(MAIN_ENTITY_ID) == snapshot
+    assert hass.states.get(ZONE_2_ENTITY_ID) == snapshot
+    assert hass.states.get(ZONE_3_ENTITY_ID) == snapshot
     mock_receiver.query_state.assert_awaited_once()
 
 
