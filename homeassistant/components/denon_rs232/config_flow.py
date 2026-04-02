@@ -11,12 +11,16 @@ import voluptuous as vol
 from homeassistant.components.usb import human_readable_device_name, scan_serial_ports
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_DEVICE, CONF_MODEL
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import DOMAIN, LOGGER
 
-MODEL_OPTIONS = {key: model.name for key, model in MODELS.items()}
-
-OPTION_PICK_MANUAL = "Enter Manually"
+OPTION_PICK_MANUAL = "manual"
 
 
 async def _async_attempt_connect(port: str, model_key: str) -> str | None:
@@ -78,18 +82,38 @@ class DenonRS232ConfigFlow(ConfigFlow, domain=DOMAIN):
             errors["base"] = error
 
         ports = await self.hass.async_add_executor_job(get_ports)
-        ports[OPTION_PICK_MANUAL] = OPTION_PICK_MANUAL
+        port_options = [
+            SelectOptionDict(value=device, label=name) for device, name in ports.items()
+        ]
+        port_options.append(
+            SelectOptionDict(value=OPTION_PICK_MANUAL, label=OPTION_PICK_MANUAL)
+        )
 
-        if user_input is None and ports:
-            user_input = {CONF_DEVICE: next(iter(ports))}
+        if user_input is None and port_options:
+            user_input = {CONF_DEVICE: port_options[0]["value"]}
 
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
-                        vol.Required(CONF_MODEL): vol.In(MODEL_OPTIONS),
-                        vol.Required(CONF_DEVICE): vol.In(ports),
+                        vol.Required(CONF_MODEL): SelectSelector(
+                            SelectSelectorConfig(
+                                options=[
+                                    SelectOptionDict(value=key, label=model.name)
+                                    for key, model in MODELS.items()
+                                ],
+                                mode=SelectSelectorMode.DROPDOWN,
+                                translation_key="model",
+                            )
+                        ),
+                        vol.Required(CONF_DEVICE): SelectSelector(
+                            SelectSelectorConfig(
+                                options=port_options,
+                                mode=SelectSelectorMode.DROPDOWN,
+                                translation_key="device",
+                            )
+                        ),
                     }
                 ),
                 user_input or {},

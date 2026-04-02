@@ -81,5 +81,17 @@
         }
       }
     }
+  },
+  "selector": {
+    "device": {
+      "options": {
+        "manual": "Enter manually"
+      }
+    },
+    "model": {
+      "options": {
+        "other": "Other"
+      }
+    }
   }
 }
