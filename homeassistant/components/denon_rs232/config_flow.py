@@ -39,6 +39,7 @@ async def _async_attempt_connect(port: str, model_key: str) -> str | None:
         # If it is a remote port, and we cannot connect
         ConnectionError,
         OSError,
+        TimeoutError,
     ):
         return "cannot_connect"
     except Exception:  # noqa: BLE001
