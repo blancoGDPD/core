@@ -9,6 +9,7 @@ from denon_rs232 import (
     DenonReceiver,
     DigitalInputMode,
     InputSource,
+    MainZoneState,
     ReceiverState,
     TunerBand,
     TunerMode,
@@ -20,7 +21,6 @@ import pytest
 from homeassistant.components.denon_rs232.const import DOMAIN
 from homeassistant.const import CONF_DEVICE, CONF_MODEL
 from homeassistant.core import HomeAssistant
-from homeassistant.setup import async_setup_component
 
 from . import MOCK_DEVICE, MOCK_MODEL
 
@@ -29,48 +29,13 @@ from tests.common import MockConfigEntry
 ZoneName = Literal["main", "zone_2", "zone_3"]
 
 
-class MockMainStateView:
-    """Main-zone view over the receiver state."""
-
-    def __init__(self, state: MockState) -> None:
-        """Initialize the main-zone state view."""
-        self._state = state
-
-    @property
-    def power(self) -> bool | None:
-        """Return the main-zone power state."""
-        return self._state.main_zone_power
-
-    @power.setter
-    def power(self, value: bool | None) -> None:
-        self._state.main_zone_power = value
-
-    @property
-    def input_source(self) -> InputSource | None:
-        """Return the main-zone input source."""
-        return self._state.input_source
-
-    @input_source.setter
-    def input_source(self, value: InputSource | None) -> None:
-        self._state.input_source = value
-
-    @property
-    def volume(self) -> float | None:
-        """Return the main-zone volume."""
-        return self._state.volume
-
-    @volume.setter
-    def volume(self, value: float | None) -> None:
-        self._state.volume = value
-
-
 class MockState(ReceiverState):
     """Receiver state with helpers for zone-oriented tests."""
 
-    def get_zone(self, zone: ZoneName) -> MockMainStateView | ZoneState:
-        """Return the requested zone state view."""
+    def get_zone(self, zone: ZoneName) -> ZoneState:
+        """Return the requested zone state."""
         if zone == "main":
-            return MockMainStateView(self)
+            return self.main_zone
         return getattr(self, zone)
 
 
@@ -114,8 +79,7 @@ class MockReceiver(DenonReceiver):
     def _load_state(self, state: MockState) -> None:
         """Swap in a new state object and rebind the live players to it."""
         self._state = state
-        self.main._state = state
-        self.main._main_state = state
+        self.main._state = state.main_zone
         self.zone_2._state = state.zone_2
         self.zone_3._state = state.zone_3
 
@@ -124,16 +88,18 @@ def _default_state() -> MockState:
     """Return a ReceiverState with typical defaults."""
     return MockState(
         power=True,
-        main_zone_power=True,
-        volume=-30.0,
-        volume_min=-80,
-        volume_max=10,
-        mute=False,
-        input_source=InputSource.CD,
-        surround_mode="STEREO",
-        digital_input=DigitalInputMode.AUTO,
-        tuner_band=TunerBand.FM,
-        tuner_mode=TunerMode.AUTO,
+        main_zone=MainZoneState(
+            power=True,
+            volume=-30.0,
+            volume_min=-80,
+            volume_max=10,
+            mute=False,
+            input_source=InputSource.CD,
+            surround_mode="STEREO",
+            digital_input=DigitalInputMode.AUTO,
+            tuner_band=TunerBand.FM,
+            tuner_mode=TunerMode.AUTO,
+        ),
         zone_2=ZoneState(
             power=True,
             input_source=InputSource.TUNER,
@@ -188,5 +154,5 @@ async def init_components(
         "homeassistant.components.denon_rs232.DenonReceiver",
         return_value=mock_receiver,
     ):
-        assert await async_setup_component(hass, DOMAIN, {})
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
