@@ -141,14 +141,20 @@ def mock_config_entry() -> MockConfigEntry:
     )
 
 
+@pytest.fixture(autouse=True)
+async def mock_usb_component(hass: HomeAssistant) -> None:
+    """Mock the USB component to prevent setup failures."""
+    hass.config.components.add("usb")
+
+
 @pytest.fixture
 async def init_components(
     hass: HomeAssistant,
+    mock_usb_component: None,
     mock_receiver: MockReceiver,
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Initialize the Denon component."""
-    hass.config.components.add("usb")
     mock_config_entry.add_to_hass(hass)
     with patch(
         "homeassistant.components.denon_rs232.DenonReceiver",
