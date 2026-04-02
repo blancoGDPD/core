@@ -9,11 +9,7 @@ from homeassistant.const import CONF_DEVICE, CONF_MODEL, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import (
-    DOMAIN,  # noqa: F401
-    LOGGER,
-    DenonRS232ConfigEntry,
-)
+from .const import LOGGER, DenonRS232ConfigEntry
 
 PLATFORMS = [Platform.MEDIA_PLAYER]
 
