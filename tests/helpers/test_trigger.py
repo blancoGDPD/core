@@ -3119,7 +3119,7 @@ async def _arm_on_off_trigger(
     entity_ids: list[str],
     behavior: str,
     calls: list[dict[str, Any]],
-    duration: dict[str, int] | None = None,
+    duration: dict[str, int] | None,
 ) -> CALLBACK_TYPE:
     """Set up _OnOffTrigger via async_initialize_triggers."""
 
@@ -3166,7 +3166,7 @@ async def test_entity_trigger_no_duration(hass: HomeAssistant, behavior: str) ->
     await hass.async_block_till_done()
 
     calls: list[dict[str, Any]] = []
-    unsub = await _arm_on_off_trigger(hass, [entity_id], behavior, calls)
+    unsub = await _arm_on_off_trigger(hass, [entity_id], behavior, calls, duration=None)
 
     hass.states.async_set(entity_id, STATE_ON)
     await hass.async_block_till_done()
@@ -3617,6 +3617,95 @@ async def test_entity_trigger_duration_any_retrigger_resets_timer(
     # 2 more seconds (5 from retrigger) — should fire
     freezer.tick(datetime.timedelta(seconds=2))
     async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+
+    unsub()
+
+
+def set_or_remove_state(hass: HomeAssistant, entity_id: str, state: str | None) -> None:
+    """Helper to set or remove state based on whether state is None."""
+    if state is None:
+        hass.states.async_remove(entity_id)
+    else:
+        hass.states.async_set(entity_id, state)
+
+
+@pytest.mark.parametrize("behavior", [BEHAVIOR_ANY, BEHAVIOR_FIRST, BEHAVIOR_LAST])
+@pytest.mark.parametrize(
+    "invalid_state",
+    [STATE_UNAVAILABLE, STATE_UNKNOWN, None],
+    ids=["unavailable", "unknown", "removed"],
+)
+async def test_entity_trigger_duration_cancelled_on_invalid_state(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    behavior: str,
+    invalid_state: str | None,
+) -> None:
+    """Test that the duration timer is cancelled if entity becomes unavailable, unknown, or is removed."""
+    entity_a = "test.entity_a"
+    entity_b = "test.entity_b"
+    set_or_remove_state(hass, entity_a, STATE_OFF)
+    set_or_remove_state(hass, entity_b, STATE_OFF)
+    await hass.async_block_till_done()
+
+    calls: list[dict[str, Any]] = []
+    unsub = await _arm_on_off_trigger(
+        hass, [entity_a, entity_b], behavior, calls, duration={"seconds": 5}
+    )
+
+    # Turn on the entities needed to start the timer
+    set_or_remove_state(hass, entity_a, STATE_ON)
+    await hass.async_block_till_done()
+    if behavior == BEHAVIOR_LAST:
+        set_or_remove_state(hass, entity_b, STATE_ON)
+        await hass.async_block_till_done()
+
+    # Entity A becomes invalid during the wait
+    freezer.tick(datetime.timedelta(seconds=2))
+    async_fire_time_changed(hass)
+    set_or_remove_state(hass, entity_a, invalid_state)
+    await hass.async_block_till_done()
+
+    # Advance past the original duration — should NOT fire
+    freezer.tick(datetime.timedelta(seconds=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert len(calls) == 0
+
+    unsub()
+
+
+@pytest.mark.parametrize("behavior", [BEHAVIOR_ANY, BEHAVIOR_FIRST, BEHAVIOR_LAST])
+@pytest.mark.parametrize(
+    "initial_state",
+    [STATE_UNAVAILABLE, STATE_UNKNOWN, None],
+    ids=["unavailable", "unknown", "no_state"],
+)
+async def test_entity_trigger_from_invalid_initial_state(
+    hass: HomeAssistant, behavior: str, initial_state: str | None
+) -> None:
+    """Test that the trigger does not fire when transitioning from unavailable, unknown, or no state."""
+    entity_id = "test.entity_1"
+    set_or_remove_state(hass, entity_id, initial_state)
+    # If initial_state is None, don't set any state — entity doesn't exist
+    await hass.async_block_till_done()
+
+    calls: list[dict[str, Any]] = []
+    unsub = await _arm_on_off_trigger(hass, [entity_id], behavior, calls, duration=None)
+
+    # Transition to "on" from the invalid initial state
+    set_or_remove_state(hass, entity_id, STATE_ON)
+    await hass.async_block_till_done()
+
+    # Should NOT fire — transition from invalid state is rejected
+    assert len(calls) == 0
+
+    # Now transition back to off and then to on — should fire
+    set_or_remove_state(hass, entity_id, STATE_OFF)
+    await hass.async_block_till_done()
+    set_or_remove_state(hass, entity_id, STATE_ON)
     await hass.async_block_till_done()
     assert len(calls) == 1
 
