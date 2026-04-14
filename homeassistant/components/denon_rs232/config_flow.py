@@ -8,7 +8,11 @@ from denon_rs232 import DenonReceiver
 from denon_rs232.models import MODELS
 import voluptuous as vol
 
-from homeassistant.components.usb import human_readable_device_name, scan_serial_ports
+from homeassistant.components.usb import (
+    USBDevice,
+    human_readable_device_name,
+    scan_serial_ports,
+)
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_DEVICE, CONF_MODEL
 from homeassistant.helpers.selector import (
@@ -153,14 +157,21 @@ class DenonRS232ConfigFlow(ConfigFlow, domain=DOMAIN):
 
 def get_ports() -> dict[str, str]:
     """Get available serial ports keyed by their device path."""
-    return {
-        port.device: human_readable_device_name(
-            port.device,
-            port.serial_number,
-            port.manufacturer,
-            port.description,
-            port.vid,
-            port.pid,
-        )
-        for port in scan_serial_ports()
-    }
+    ports: dict[str, str] = {}
+    for port in scan_serial_ports():
+        if isinstance(port, USBDevice):
+            ports[port.device] = human_readable_device_name(
+                port.device,
+                port.serial_number,
+                port.manufacturer,
+                port.description,
+                port.vid,
+                port.pid,
+            )
+        else:
+            ports[port.device] = (
+                f"{port.description} - {port.device}"
+                if port.description
+                else port.device
+            )
+    return ports
