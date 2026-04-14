@@ -33,7 +33,7 @@ def mock_list_serial_ports() -> Generator[list[USBDevice]]:
     ]
 
     with patch(
-        "homeassistant.components.denon_rs232.config_flow.scan_serial_ports",
+        "homeassistant.components.usb.scan_serial_ports",
         return_value=ports,
     ):
         yield ports
