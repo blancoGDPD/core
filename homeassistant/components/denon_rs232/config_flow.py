@@ -82,9 +82,20 @@ class DenonRS232ConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             errors["base"] = error
 
-        ports = await self.hass.async_add_executor_job(get_ports)
+        ports = await usb.async_scan_serial_ports(self.hass)
         port_options = [
-            SelectOptionDict(value=device, label=name) for device, name in ports.items()
+            SelectOptionDict(
+                value=port.device,
+                label=usb.human_readable_device_name(
+                    port.device,
+                    port.serial_number,
+                    port.manufacturer,
+                    port.description,
+                    getattr(port, "vid", None),
+                    getattr(port, "pid", None),
+                ),
+            )
+            for port in ports
         ]
         port_options.append(
             SelectOptionDict(value=OPTION_PICK_MANUAL, label=OPTION_PICK_MANUAL)
@@ -149,18 +160,3 @@ class DenonRS232ConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
-
-
-def get_ports() -> dict[str, str]:
-    """Get available serial ports keyed by their device path."""
-    return {
-        port.device: usb.human_readable_device_name(
-            port.device,
-            port.serial_number,
-            port.manufacturer,
-            port.description,
-            getattr(port, "vid", None),
-            getattr(port, "pid", None),
-        )
-        for port in usb.scan_serial_ports()
-    }
